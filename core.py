@@ -1,7 +1,8 @@
 import random, string
 from flask import render_template, request, redirect, url_for, session
 from flask_socketio import emit, disconnect, join_room, leave_room
-from words import words_pool  # Importa la lista de palabras
+from words import words_pool  # Importa la lista de 100 palabras
+
 # Diccionario global para almacenar las salas
 rooms = {}
 
@@ -9,31 +10,42 @@ def generate_room_id(length=6):
     return ''.join(random.choices(string.ascii_uppercase, k=length))
 
 def initialize_app(app, socketio):
-    # Rutas HTTP
     @app.route("/", methods=["GET", "POST"])
     def index():
+        error = None
         if request.method == "POST":
             alias = request.form.get("alias")
             room = request.form.get("room")
             if not alias:
-                return redirect(url_for("index"))
+                error = "El alias es requerido."
+                return render_template("index.html", error=error)
             if not room:
                 room = generate_room_id()
+            # Si la sala ya existe, verifica que el alias no se use ya (sin distinguir mayúsculas/minúsculas)
+            if room in rooms:
+                for player in rooms[room]["players"].values():
+                    if player["alias"].lower() == alias.lower():
+                        error = "El alias ya existe en la sala."
+                        break
+            if error:
+                return render_template("index.html", error=error)
             session["alias"] = alias
             session["room"] = room
             if room not in rooms:
                 rooms[room] = {"players": {}, "game_data": {}}
-            # Aquí usamos el endpoint 'room_view'
             return redirect(url_for("room_view", room_id=room))
-        return render_template("index.html")
+        return render_template("index.html", error=error)
     
     @app.route("/room/<room_id>")
     def room_view(room_id):
         if "alias" not in session or "room" not in session or session["room"] != room_id:
             return redirect(url_for("index"))
         return render_template("room.html", room_id=room_id)
-
-    # Eventos de SocketIO
+    
+    # ---------------------------
+    # Eventos de Socket.IO
+    # ---------------------------
+    
     @socketio.on("connect")
     def handle_connect():
         alias = session.get("alias")
@@ -43,6 +55,7 @@ def initialize_app(app, socketio):
         join_room(room_id)
         if room_id not in rooms:
             rooms[room_id] = {"players": {}, "game_data": {}}
+        # Agrega al jugador usando su request.sid
         rooms[room_id]["players"][request.sid] = {"alias": alias, "ready": False, "repartir": False}
         update_players_list(room_id)
     
@@ -64,7 +77,7 @@ def initialize_app(app, socketio):
             rooms[room_id]["players"][request.sid]["ready"] = True
         if "words" in rooms[room_id]["game_data"] and rooms[room_id]["game_data"].get("words"):
             game_data = rooms[room_id]["game_data"]
-            players_list = [{"alias": p["alias"], "repartir": p.get("repartir", False)}
+            players_list = [{"alias": p["alias"], "repartir": p.get("repartir", False)} 
                             for p in rooms[room_id]["players"].values()]
             if request.sid == game_data["impostor"]:
                 words = ["impostor"] * 10
@@ -104,10 +117,13 @@ def initialize_app(app, socketio):
             update_repartir_status(room_id)
         disconnect()
     
-    # Funciones de utilidad internas
+    # ---------------------------
+    # Funciones de utilidad
+    # ---------------------------
+    
     def update_players_list(room_id):
         if room_id in rooms:
-            players_list = [{"alias": p["alias"], "ready": p.get("ready", False)}
+            players_list = [{"alias": p["alias"], "ready": p.get("ready", False)} 
                             for p in rooms[room_id]["players"].values()]
             socketio.emit("update_players", {"players": players_list}, room=room_id)
     
@@ -139,3 +155,4 @@ def initialize_app(app, socketio):
                 "impostor": rooms[room_id]["players"][impostor_sid]["alias"]
             }, room=sid)
         update_repartir_status(room_id)
+
