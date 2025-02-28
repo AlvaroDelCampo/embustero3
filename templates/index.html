@@ -29,6 +29,9 @@
    <div class="container">
      <div class="card p-4">
        <h1 class="text-center mb-4">¡Bienvenido!</h1>
+       {% if error %}
+         <div class="alert alert-danger">{{ error }}</div>
+       {% endif %}
        <form method="post">
          <div class="mb-3">
            <input type="text" class="form-control" name="alias" placeholder="Tu alias" required>
@@ -42,3 +45,4 @@
    </div>
 </body>
 </html>
+
