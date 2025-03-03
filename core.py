@@ -3,12 +3,6 @@ from flask import render_template, request, redirect, url_for, session
 from flask_socketio import emit, disconnect, join_room, leave_room
 from words import words_pool  # Lista de 100 palabras
 
-# Conexión a Redis usando las variables de entorno (o valores por defecto)
-import redis
-REDIS_HOST = os.environ.get("'talented-hawk-15765.upstash.io'", "localhost")
-REDIS_PORT = int(os.environ.get("6379", "6379"))
-REDIS_PASSWORD = os.environ.get("AT2VAAIjcDFiZDljZDAyOTFlNWI0YzAzYmUxODI0YmNlMTIxY2RhYXAxMA", None)
-redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
 
 def generate_room_id(length=6):
     return ''.join(random.choices(string.ascii_uppercase, k=length))
