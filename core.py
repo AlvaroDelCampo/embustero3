@@ -1,9 +1,8 @@
 import random, string
 from flask import render_template, request, redirect, url_for, session
 from flask_socketio import emit, disconnect, join_room, leave_room
-from words import words_pool  # Importa la lista de 100 palabras
+from words import words_pool  
 
-# Diccionario global para almacenar las salas
 rooms = {}
 
 def generate_room_id(length=6):
